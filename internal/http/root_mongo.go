@@ -6,32 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func CreateCountry(entity string) string {
-	client, database, ctx, cancel, err := mongohelper.ConnectMongo()
-
-	collection := database.Collection("countries")
-	if err != nil {
-		cancel()
-		return "Произошла проблема с подключение к БД: " + err.Error()
-	}
-
-	country := Country{
-		Name: entity,
-	}
-
-	res, err := collection.InsertOne(ctx, country)
-
-	if err != nil {
-		return "Вставка не произошла успешно: " + err.Error()
-	}
-
-	defer cancel()
-	defer client.Disconnect(ctx)
-
-	return "Запись успешно создана: " + res.InsertedID.(primitive.ObjectID).Hex()
-}
-
-func ReadCountry() ([]Country, error) {
+func ReadAll[T any](collectionName string) ([]T, error) {
 	client, db, ctx, cancel, err := mongohelper.ConnectMongo()
 	if err != nil {
 		cancel()
@@ -40,21 +15,81 @@ func ReadCountry() ([]Country, error) {
 	defer cancel()
 	defer client.Disconnect(ctx)
 
-	cursor, err := db.Collection("countries").Find(ctx, bson.M{})
+	collection := db.Collection(collectionName)
+	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close(ctx)
 
-	var countries []Country
+	var results []T
 	for cursor.Next(ctx) {
-		var country Country
-		if err := cursor.Decode(&country); err != nil {
+		var item T
+		if err := cursor.Decode(&item); err != nil {
 			return nil, err
 		}
-		countries = append(countries, country)
+		results = append(results, item)
 	}
 
-	return countries, err
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func Create[T any](collectionName string, value T) (string, error) {
+	client, db, ctx, cancel, err := mongohelper.ConnectMongo()
+	if err != nil {
+		return "Проблема с подключением к БД", err
+	}
+	defer cancel()
+	defer client.Disconnect(ctx)
+
+	collection := db.Collection(collectionName)
+
+	res, err := collection.InsertOne(ctx, value)
+	if err != nil {
+		return "Проблема с вставкой", err
+	}
+
+	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
+		return "Запись успешно создана: " + oid.Hex(), nil
+	}
+
+	return "Запись создана (не ObjectID)", nil
+}
+
+func Read[T any](collectionName string, filter any) ([]T, error) {
+	client, db, ctx, cancel, err := mongohelper.ConnectMongo()
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	defer cancel()
+	defer client.Disconnect(ctx)
+
+	collection := db.Collection(collectionName)
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []T
+	for cursor.Next(ctx) {
+		var item T
+		if err := cursor.Decode(&item); err != nil {
+			return nil, err
+		}
+		results = append(results, item)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 //func main() {
