@@ -6,14 +6,6 @@ import (
 	"net/http"
 )
 
-type Serve struct {
-	mux *http.ServeMux
-}
-
-type tableBody struct {
-	name string `json:"name"`
-}
-
 func createHandler(s *Serve) {
 	s.mux.HandleFunc("POST /create/{entity}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
@@ -29,24 +21,39 @@ func createHandler(s *Serve) {
 			return
 		}
 
+		var answer string
 		switch entity {
 		case "country":
-			if tB.name == "" {
+			if tB.Name == "" {
 				WriteApiResponse(w, nil, "Поле name не может быть пустым", http.StatusBadRequest)
+				return
 			}
-			Create(entity, "hello")
+			answer = CreateCountry(tB.Name)
 		}
 
-		WriteApiResponse(w, nil, "Создано: "+entity, http.StatusOK)
-	})
+		WriteApiResponse(w, nil, answer, http.StatusOK)
 
-	s.mux.HandleFunc("GET /read/{entity}", func(w http.ResponseWriter, r *http.Request) {
-		entity := r.PathValue("entity")
-		WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
 	})
 }
 
-func readHandler(s *Serve)   {}
+func readHandler(s *Serve) {
+	s.mux.HandleFunc("GET /read/{entity}", func(w http.ResponseWriter, r *http.Request) {
+		entity := r.PathValue("entity")
+		switch entity {
+		case "country":
+			answer, err := ReadCountry()
+			if err != nil {
+				WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			WriteApiResponse(w, answer, "", http.StatusOK)
+			return
+		}
+		WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
+		return
+	})
+}
 func updateHandler(s *Serve) {}
 func deleteHandler(s *Serve) {}
 
