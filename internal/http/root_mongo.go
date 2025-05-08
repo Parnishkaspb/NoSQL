@@ -92,6 +92,22 @@ func Read[T any](collectionName string, filter any) ([]T, error) {
 	return results, nil
 }
 
+func DeleteT(collectionName string, filter bson.M) (int64, error) {
+	client, db, ctx, cancel, err := mongohelper.ConnectMongo()
+	if err != nil {
+		return 0, err
+	}
+	defer cancel()
+	defer client.Disconnect(ctx)
+
+	res, err := db.Collection(collectionName).DeleteOne(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.DeletedCount, nil
+}
+
 //func main() {
 //	err := godotenv.Load()
 //	if err != nil {

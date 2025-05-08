@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"log"
 	"net/http"
@@ -280,7 +281,92 @@ func updateHandler(s *Serve) {
 		return
 	})
 }
-func deleteHandler(s *Serve) {}
+func deleteHandler(s *Serve) {
+	s.mux.HandleFunc("DELETE /delete/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
+		entity := r.PathValue("entity")
+		id := r.PathValue("id")
+		switch entity {
+		case "country":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			_, err = DeleteT("countries", bson.M{"_id": id})
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
+			return
+		case "platform":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			_, err = DeleteT("platforms", bson.M{"_id": id})
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
+			return
+		case "game":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			_, err = DeleteT("games", bson.M{"_id": id})
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
+			return
+		case "user":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			_, err = DeleteT("users", bson.M{"_id": id})
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
+			return
+		case "gamereview":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			_, err = DeleteT("gamesreviews", bson.M{"_id": id})
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
+			return
+
+		}
+		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
+		return
+	})
+}
 
 func StartServer() {
 
