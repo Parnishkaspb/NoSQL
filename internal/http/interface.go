@@ -6,13 +6,6 @@ import (
 	"time"
 )
 
-type APIArm interface {
-	Create(string, any) (string, error)
-	ReadAll(string, any) ([]any, error)
-	Update(string, any) (string, error)
-	Delete()
-}
-
 type Server interface {
 	createHandler()
 	readHandler()
@@ -41,6 +34,9 @@ type tableBody struct {
 	UserID      primitive.ObjectID `bson:"user_id"`
 	Rating      int                `bson:"rating"`
 	Review      string             `bson:"text"`
+	Discount    int                `bson:"discount"`
+	Quantity    int                `bson:"quantity"`
+	Code        string             `bson:"code"`
 }
 
 type Country struct {
@@ -78,4 +74,19 @@ type GameReview struct {
 	Rating    int                `bson:"rating"`
 	Review    string             `bson:"text"`
 	CreatedAt time.Time          `bson:"created_at"`
+}
+
+type GameActualPrice struct {
+	Price    float64 `bson:"price"`
+	Discount int     `bson:"discount"`
+}
+
+type UsersCart struct {
+	GameID   primitive.ObjectID `bson:"game_id"`
+	Quantity int                `bson:"quantity"`
+	Price    float64            `bson:"price"`
+}
+
+type UsersResetPassword struct {
+	Code string `json:"code"`
 }

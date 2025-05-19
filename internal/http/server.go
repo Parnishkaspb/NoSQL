@@ -1,6 +1,8 @@
 package http
 
 import (
+	mongohelper "NoSQL/internal/database/mongo"
+	redishelper "NoSQL/internal/database/redis"
 	"NoSQL/internal/pkg"
 	"encoding/json"
 	"fmt"
@@ -9,6 +11,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -36,7 +40,7 @@ func createHandler(s *Serve) {
 				return
 			}
 
-			answer, err = Create[Country]("countries", Country{Name: tB.Name})
+			answer, err = mongohelper.Create[Country]("countries", Country{Name: tB.Name})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
@@ -48,9 +52,8 @@ func createHandler(s *Serve) {
 				return
 			}
 
-			answer, err = Create[Platform]("platforms", Platform{Name: tB.Name})
+			answer, err = mongohelper.Create[Platform]("platforms", Platform{Name: tB.Name})
 
-			fmt.Println(answer)
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
 				return
@@ -81,7 +84,7 @@ func createHandler(s *Serve) {
 				ApprovedAge: tB.ApprovedAge != nil && *tB.ApprovedAge,
 			}
 
-			answer, err = Create[Game]("games", game)
+			answer, err = mongohelper.Create[Game]("games", game)
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
@@ -101,7 +104,7 @@ func createHandler(s *Serve) {
 				return
 			}
 
-			users, err := Read[User]("users", bson.M{"login": tB.Login})
+			users, err := mongohelper.Read[User]("users", bson.M{"login": tB.Login})
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -130,7 +133,7 @@ func createHandler(s *Serve) {
 				Password: tB.Password,
 			}
 
-			answer, err = Create[User]("users", user)
+			answer, err = mongohelper.Create[User]("users", user)
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
@@ -154,7 +157,7 @@ func createHandler(s *Serve) {
 				return
 			}
 
-			users, err := Read[User]("users", bson.M{"_id": tB.UserID})
+			users, err := mongohelper.Read[User]("users", bson.M{"_id": tB.UserID})
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -164,7 +167,7 @@ func createHandler(s *Serve) {
 				return
 			}
 
-			games, err := Read[Game]("games", bson.M{"_id": tB.GameID})
+			games, err := mongohelper.Read[Game]("games", bson.M{"_id": tB.GameID})
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -182,25 +185,97 @@ func createHandler(s *Serve) {
 				CreatedAt: time.Now(),
 			}
 
-			answer, err = Create[GameReview]("gamesreviews", gamereview)
+			answer, err = mongohelper.Create[GameReview]("gamesreviews", gamereview)
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
 				return
 			}
+		case "gameactualprice":
+			if tB.GameID.IsZero() {
+				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			if tB.Price <= 0 {
+				pkg.WriteApiResponse(w, nil, "Поле price не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			if tB.Discount <= 0 {
+				pkg.WriteApiResponse(w, nil, "Поле discount не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_GamesActualPrice"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+			}
+			gameactualprice := GameActualPrice{
+				Price:    tB.Price,
+				Discount: tB.Discount,
+			}
+			err = redishelper.CreateUpdate[GameActualPrice](typeDB, tB.GameID.Hex(), gameactualprice)
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		case "userscart":
+			if tB.UserID.IsZero() {
+				pkg.WriteApiResponse(w, nil, "Поле user_id не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			if tB.GameID.IsZero() {
+				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			if tB.Quantity <= 0 {
+				pkg.WriteApiResponse(w, nil, "Поле discount не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			if tB.Price <= 0 {
+				pkg.WriteApiResponse(w, nil, "Поле price не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+				return
+			}
+			userscart := UsersCart{
+				GameID:   tB.GameID,
+				Quantity: tB.Quantity,
+				Price:    tB.Price,
+			}
+
+			err = redishelper.CreateUpdate[UsersCart](typeDB, tB.GameID.Hex(), userscart)
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
+			return
+
 		}
 
-		pkg.WriteApiResponse(w, nil, answer, http.StatusOK)
-
+		pkg.WriteApiResponse(w, nil, "Прочитано "+entity, http.StatusOK)
+		return
 	})
 }
 
 func readHandler(s *Serve) {
-	s.mux.HandleFunc("GET /read/{entity}", func(w http.ResponseWriter, r *http.Request) {
+	s.mux.HandleFunc("GET /read/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
+		id := r.PathValue("id")
 		switch entity {
 		case "country":
-			answer, err := ReadAll[Country]("countries")
+			answer, err := mongohelper.ReadAll[Country]("countries")
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -210,7 +285,7 @@ func readHandler(s *Serve) {
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
 		case "platform":
-			answer, err := ReadAll[Platform]("platforms")
+			answer, err := mongohelper.ReadAll[Platform]("platforms")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -218,9 +293,8 @@ func readHandler(s *Serve) {
 
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
-
 		case "game":
-			answer, err := ReadAll[Game]("games")
+			answer, err := mongohelper.ReadAll[Game]("games")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -228,9 +302,8 @@ func readHandler(s *Serve) {
 
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
-
 		case "user":
-			answer, err := ReadAll[User]("users")
+			answer, err := mongohelper.ReadAll[User]("users")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -239,7 +312,7 @@ func readHandler(s *Serve) {
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
 		case "gamereview":
-			answer, err := ReadAll[GameReview]("gamesreviews")
+			answer, err := mongohelper.ReadAll[GameReview]("gamesreviews")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -247,17 +320,69 @@ func readHandler(s *Serve) {
 
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+		case "gameactualprice":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_GamesActualPrice"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+				return
+			}
+			gameactualprice, err := redishelper.Read[GameActualPrice](typeDB, id.Hex())
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			pkg.WriteApiResponse(w, gameactualprice, "", http.StatusOK)
+			return
+		case "userscart":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+				return
+			}
+			userscart, err := redishelper.Read[UsersCart](typeDB, id.Hex())
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
+			return
 		}
 		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
 		return
 	})
 }
 func updateHandler(s *Serve) {
-	s.mux.HandleFunc("PUT /update/{entity}", func(w http.ResponseWriter, r *http.Request) {
+	s.mux.HandleFunc("PUT /update/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
+		id := r.PathValue("id")
+		var tB tableBody
+
+		if err := json.NewDecoder(r.Body).Decode(&tB); err != nil {
+			if err == io.EOF {
+				pkg.WriteApiResponse(w, nil, "Пустое тело запроса", http.StatusBadRequest)
+				return
+			}
+			pkg.WriteApiResponse(w, nil, "Ошибка разбора JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		switch entity {
 		case "country":
-			answer, err := ReadAll[Country]("countries")
+			answer, err := mongohelper.ReadAll[Country]("countries")
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -267,7 +392,7 @@ func updateHandler(s *Serve) {
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
 		case "platform":
-			answer, err := ReadAll[Platform]("platforms")
+			answer, err := mongohelper.ReadAll[Platform]("platforms")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -275,7 +400,42 @@ func updateHandler(s *Serve) {
 
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+		case "userscart":
+			if tB.GameID.IsZero() {
+				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
 
+			if tB.Quantity <= 0 {
+				pkg.WriteApiResponse(w, nil, "Поле discount не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			if tB.Price <= 0 {
+				pkg.WriteApiResponse(w, nil, "Поле price не может быть равно или меньше 0", http.StatusBadRequest)
+				return
+			}
+
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+				return
+			}
+			userscart := UsersCart{
+				GameID:   tB.GameID,
+				Quantity: tB.Quantity,
+				Price:    tB.Price,
+			}
+
+			err = redishelper.CreateUpdate[UsersCart](typeDB, id, userscart)
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
+			return
 		}
 		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
 		return
@@ -292,7 +452,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = DeleteT("countries", bson.M{"_id": id})
+			_, err = mongohelper.DeleteT("countries", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -307,7 +467,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = DeleteT("platforms", bson.M{"_id": id})
+			_, err = mongohelper.DeleteT("platforms", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -322,7 +482,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = DeleteT("games", bson.M{"_id": id})
+			_, err = mongohelper.DeleteT("games", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -337,7 +497,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = DeleteT("users", bson.M{"_id": id})
+			_, err = mongohelper.DeleteT("users", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -352,7 +512,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = DeleteT("gamesreviews", bson.M{"_id": id})
+			_, err = mongohelper.DeleteT("gamesreviews", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -361,6 +521,28 @@ func deleteHandler(s *Serve) {
 
 			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
 			return
+		case "gameactualprice":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_GamesActualPrice"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+			}
+			err = redishelper.Delete(typeDB, id.Hex())
+		case "userscart":
+			id, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+				return
+			}
+			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+			}
+			err = redishelper.Delete(typeDB, id.Hex())
 
 		}
 		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
