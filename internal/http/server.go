@@ -4,6 +4,7 @@ import (
 	mongohelper "NoSQL/internal/database/mongo"
 	redishelper "NoSQL/internal/database/redis"
 	"NoSQL/internal/pkg"
+	"context"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,8 +17,8 @@ import (
 	"time"
 )
 
-func createHandler(s *Serve) {
-	s.mux.HandleFunc("POST /create/{entity}", func(w http.ResponseWriter, r *http.Request) {
+func createHandler(r *Router) {
+	r.mux.HandleFunc("POST /create/{entity}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
 
 		var tB tableBody
@@ -269,104 +270,211 @@ func createHandler(s *Serve) {
 	})
 }
 
-func readHandler(s *Serve) {
-	s.mux.HandleFunc("GET /read/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
+//func readHandler(r *Router) {
+//	r.mux.HandleFunc("GET /read/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
+//		entity := r.PathValue("entity")
+//		id := r.PathValue("id")
+//		switch entity {
+//		case "country":
+//			answer, err := mongohelper.ReadAll[Country]("countries")
+//
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
+//			return
+//		case "platform":
+//			answer, err := mongohelper.ReadAll[Platform]("platforms")
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
+//			return
+//		case "game":
+//			answer, err := mongohelper.ReadAll[Game]("games")
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
+//			return
+//		case "user":
+//			answer, err := mongohelper.ReadAll[User]("users")
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
+//			return
+//		case "gamereview":
+//			answer, err := mongohelper.ReadAll[GameReview]("gamesreviews")
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
+//			return
+//		case "gameactualprice":
+//			id, err := primitive.ObjectIDFromHex(id)
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+//				return
+//			}
+//			typeDB, err := strconv.Atoi(os.Getenv("REDIS_GamesActualPrice"))
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+//				return
+//			}
+//			gameactualprice, err := redishelper.Read[GameActualPrice](typeDB, id.Hex())
+//
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, gameactualprice, "", http.StatusOK)
+//			return
+//		case "userscart":
+//			id, err := primitive.ObjectIDFromHex(id)
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+//				return
+//			}
+//			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+//				return
+//			}
+//			userscart, err := redishelper.Read[UsersCart](typeDB, id.Hex())
+//
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
+//			return
+//		}
+//		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
+//		return
+//	})
+//}
+
+func handleReadAll(r *Router) {
+	r.mux.HandleFunc("GET /read/{entity}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
-		id := r.PathValue("id")
+
 		switch entity {
 		case "country":
 			answer, err := mongohelper.ReadAll[Country]("countries")
-
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+
 		case "platform":
 			answer, err := mongohelper.ReadAll[Platform]("platforms")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+
 		case "game":
 			answer, err := mongohelper.ReadAll[Game]("games")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+
 		case "user":
 			answer, err := mongohelper.ReadAll[User]("users")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+
 		case "gamereview":
 			answer, err := mongohelper.ReadAll[GameReview]("gamesreviews")
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
+
+		default:
+			pkg.WriteApiResponse(w, nil, "Неизвестная сущность", http.StatusBadRequest)
+		}
+	})
+}
+
+func handleReadByID(r *Router) {
+	r.mux.HandleFunc("GET /read/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
+		entity := r.PathValue("entity")
+		id := r.PathValue("id")
+
+		switch entity {
 		case "gameactualprice":
-			id, err := primitive.ObjectIDFromHex(id)
+			objID, err := primitive.ObjectIDFromHex(id)
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
 			typeDB, err := strconv.Atoi(os.Getenv("REDIS_GamesActualPrice"))
 			if err != nil {
-				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+				pkg.WriteApiResponse(w, nil, "Ошибка типа БД", http.StatusBadRequest)
 				return
 			}
-			gameactualprice, err := redishelper.Read[GameActualPrice](typeDB, id.Hex())
-
+			data, err := redishelper.Read[GameActualPrice](typeDB, objID.Hex())
 			if err != nil {
-				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			pkg.WriteApiResponse(w, gameactualprice, "", http.StatusOK)
+			pkg.WriteApiResponse(w, data, "", http.StatusOK)
 			return
+
 		case "userscart":
-			id, err := primitive.ObjectIDFromHex(id)
+			objID, err := primitive.ObjectIDFromHex(id)
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
 			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
 			if err != nil {
-				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
+				pkg.WriteApiResponse(w, nil, "Ошибка типа БД", http.StatusBadRequest)
 				return
 			}
-			userscart, err := redishelper.Read[UsersCart](typeDB, id.Hex())
-
+			data, err := redishelper.Read[UsersCart](typeDB, objID.Hex())
 			if err != nil {
-				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
+				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
+			pkg.WriteApiResponse(w, data, "", http.StatusOK)
 			return
+
+		default:
+			pkg.WriteApiResponse(w, nil, "Неизвестная сущность", http.StatusBadRequest)
 		}
-		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
-		return
 	})
 }
-func updateHandler(s *Serve) {
-	s.mux.HandleFunc("PUT /update/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
+
+func updateHandler(r *Router) {
+	r.mux.HandleFunc("PUT /update/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
 		id := r.PathValue("id")
 		var tB tableBody
@@ -441,8 +549,9 @@ func updateHandler(s *Serve) {
 		return
 	})
 }
-func deleteHandler(s *Serve) {
-	s.mux.HandleFunc("DELETE /delete/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
+
+func deleteHandler(r *Router) {
+	r.mux.HandleFunc("DELETE /delete/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
 		entity := r.PathValue("entity")
 		id := r.PathValue("id")
 		switch entity {
@@ -550,18 +659,49 @@ func deleteHandler(s *Serve) {
 	})
 }
 
-func StartServer() {
+type Router struct {
+	mux *http.ServeMux
+}
 
-	s := &Serve{mux: http.NewServeMux()}
+type httpServerStruct struct {
+	httpServer *http.Server
+}
 
-	createHandler(s)
-	readHandler(s)
-	updateHandler(s)
-	deleteHandler(s)
+func NewServer() *httpServerStruct {
+	router := &Router{mux: http.NewServeMux()}
 
-	fmt.Printf("сервер запущен! http://localhost:8080/\n")
-	err := http.ListenAndServe(":8080", s.mux)
-	if err != nil {
-		log.Fatalf("Сервер упал: %v", err)
+	createHandler(router)
+	handleReadAll(router)
+	handleReadByID(router)
+	updateHandler(router)
+	deleteHandler(router)
+
+	httpServer := &http.Server{
+		Addr:    ":8080",
+		Handler: router.mux,
 	}
+
+	return &httpServerStruct{httpServer: httpServer}
+}
+
+func (s *httpServerStruct) Start(ctx context.Context) error {
+	fmt.Println("Сервер запущен на http://localhost:8080")
+
+	go func() {
+		<-ctx.Done()
+		log.Println("Получен сигнал остановки сервера...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Ошибка при завершении сервера: %v", err)
+		}
+	}()
+
+	err := s.httpServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("не удалось запустить сервер: %w", err)
+	}
+
+	log.Println("Сервер завершил работу корректно")
+	return nil
 }
