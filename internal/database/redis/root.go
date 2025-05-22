@@ -4,61 +4,77 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/joho/godotenv"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"os"
+	"sync"
 	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
-func connectRedis(typeDB int) (*redis.Client, error) {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Printf("не удалось загрузить .env: %v", err)
-		return nil, fmt.Errorf("не удалось загрузить .env: %v", err)
+var (
+	client   *redis.Client
+	initOnce sync.Once
+	initErr  error
+	ctx      = context.Background()
+)
+
+func initRedis(typeDB int) {
+	initErr = godotenv.Load(".env")
+	if initErr != nil {
+		log.Printf("не удалось загрузить .env: %v", initErr)
+		return
 	}
 
 	host := os.Getenv("HOST")
 	port := os.Getenv("REDIS_PORT")
 	if host == "" || port == "" {
-		return nil, fmt.Errorf("HOST или REDIS_PORT не заданы в .env")
+		initErr = fmt.Errorf("HOST или REDIS_PORT не заданы в .env")
+		log.Printf("HOST или REDIS_PORT не заданы: %s %s", host, port)
+		return
 	}
 
-	rdb := redis.NewClient(&redis.Options{
+	client = redis.NewClient(&redis.Options{
 		Addr:     host + ":" + port,
 		Password: "",
 		DB:       typeDB,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	_, err = rdb.Ping(ctx).Result()
-	if err != nil {
-		log.Printf("ошибка подключения к Redis: %v\n", err)
-		return nil, fmt.Errorf("ошибка подключения к Redis: %v", err)
+	if _, err := client.Ping(pingCtx).Result(); err != nil {
+		initErr = fmt.Errorf("ошибка подключения к Redis: %v", err)
+		log.Printf("Redis ошибка: %v", err)
+		return
 	}
 
 	log.Println("✅ Успешное подключение к Redis")
-	return rdb, nil
+}
+
+func getClient(typeDB int) (*redis.Client, error) {
+	initOnce.Do(func() {
+		initRedis(typeDB)
+	})
+	return client, initErr
 }
 
 func Read[T any](typeDB int, key string) ([]T, error) {
-	rb, err := connectRedis(typeDB)
+	rb, err := getClient(typeDB)
 	if err != nil {
 		return nil, err
 	}
-	ctx := context.Background()
+
 	val, err := rb.Get(ctx, key).Result()
 	if err == redis.Nil {
-		return make([]T, 0), err
+		return make([]T, 0), nil
 	} else if err != nil {
 		return nil, err
 	}
 
 	var items []T
-	err = json.Unmarshal([]byte(val), &items)
-	if err != nil {
+	if err := json.Unmarshal([]byte(val), &items); err != nil {
 		return nil, err
 	}
 
@@ -66,8 +82,7 @@ func Read[T any](typeDB int, key string) ([]T, error) {
 }
 
 func CreateUpdate[T any](typeDB int, key string, value T) error {
-	ctx := context.Background()
-	rb, err := connectRedis(typeDB)
+	rb, err := getClient(typeDB)
 	if err != nil {
 		return err
 	}
@@ -77,23 +92,14 @@ func CreateUpdate[T any](typeDB int, key string, value T) error {
 		return err
 	}
 
-	err = rb.Set(ctx, key, valueJSON, 0).Err()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return rb.Set(ctx, key, valueJSON, 0).Err()
 }
 
 func Delete(typeDB int, key string) error {
-	ctx := context.Background()
-	rb, err := connectRedis(typeDB)
+	rb, err := getClient(typeDB)
 	if err != nil {
 		return err
 	}
-	err = rb.Del(ctx, key).Err()
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return rb.Del(ctx, key).Err()
 }

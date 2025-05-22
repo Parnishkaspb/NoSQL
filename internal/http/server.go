@@ -452,7 +452,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.DeleteT("countries", bson.M{"_id": id})
+			_, err = mongohelper.Delete("countries", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -467,7 +467,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.DeleteT("platforms", bson.M{"_id": id})
+			_, err = mongohelper.Delete("platforms", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -482,7 +482,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.DeleteT("games", bson.M{"_id": id})
+			_, err = mongohelper.Delete("games", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -497,7 +497,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.DeleteT("users", bson.M{"_id": id})
+			_, err = mongohelper.Delete("users", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -512,7 +512,7 @@ func deleteHandler(s *Serve) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.DeleteT("gamesreviews", bson.M{"_id": id})
+			_, err = mongohelper.Delete("gamesreviews", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
