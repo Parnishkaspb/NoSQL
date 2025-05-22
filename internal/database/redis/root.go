@@ -95,7 +95,7 @@ func CreateUpdate[T any](typeDB int, key string, value T) error {
 	return rb.Set(ctx, key, valueJSON, 0).Err()
 }
 
-func Delete(typeDB int, key string) error {
+func Delete[T any](typeDB int, key string) error {
 	rb, err := getClient(typeDB)
 	if err != nil {
 		return err

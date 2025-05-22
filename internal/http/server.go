@@ -1,6 +1,7 @@
 package http
 
 import (
+	neo4jhelper "NoSQL/internal/database/neo4j"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -265,6 +266,40 @@ func createHandler(r *Router) {
 			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
 			return
 
+		case "userfriend":
+			if tB.UserID.IsZero() {
+				pkg.WriteApiResponse(w, nil, "Поле user_id не может быть пустым", http.StatusBadRequest)
+				return
+			}
+
+			if tB.FriendID.IsZero() {
+				pkg.WriteApiResponse(w, nil, "Поле friend_id не может быть пустым", http.StatusBadRequest)
+				return
+			}
+
+			user1, err := mongohelper.Read[User]("users", bson.M{"_id": tB.UserID})
+			if err != nil || len(user1) == 0 {
+				pkg.WriteApiResponse(w, nil, "user_id не найден", http.StatusNotFound)
+				return
+			}
+
+			user2, err := mongohelper.Read[User]("users", bson.M{"_id": tB.FriendID})
+			if err != nil || len(user2) == 0 {
+				pkg.WriteApiResponse(w, nil, "friend_id не найден", http.StatusNotFound)
+				return
+			}
+
+			_ = neo4jhelper.CreateNode("User", user1[0].ID.Hex(), user1[0])
+			_ = neo4jhelper.CreateNode("User", user2[0].ID.Hex(), user2[0])
+
+			err = neo4jhelper.CreateRelation("FRIEND_WITH", "User", "User", user1[0].ID.Hex(), user2[0].ID.Hex())
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Ошибка при создании дружбы: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Дружба установлена", "", http.StatusOK)
+
 		}
 
 		pkg.WriteApiResponse(w, nil, "Прочитано "+entity, http.StatusOK)
@@ -466,7 +501,7 @@ func deleteHandler(r *Router) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.Delete("countries", bson.M{"_id": id})
+			_, err = mongohelper.Delete[Country]("countries", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -481,7 +516,7 @@ func deleteHandler(r *Router) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.Delete("platforms", bson.M{"_id": id})
+			_, err = mongohelper.Delete[Platform]("platforms", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -496,7 +531,7 @@ func deleteHandler(r *Router) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.Delete("games", bson.M{"_id": id})
+			_, err = mongohelper.Delete[Game]("games", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -511,7 +546,7 @@ func deleteHandler(r *Router) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.Delete("users", bson.M{"_id": id})
+			_, err = mongohelper.Delete[User]("users", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -526,7 +561,7 @@ func deleteHandler(r *Router) {
 				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
 				return
 			}
-			_, err = mongohelper.Delete("gamesreviews", bson.M{"_id": id})
+			_, err = mongohelper.Delete[GameReview]("gamesreviews", bson.M{"_id": id})
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
@@ -545,7 +580,7 @@ func deleteHandler(r *Router) {
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
 			}
-			err = redishelper.Delete(typeDB, id.Hex())
+			err = redishelper.Delete[GameActualPrice](typeDB, id.Hex())
 		case "userscart":
 			id, err := primitive.ObjectIDFromHex(id)
 			if err != nil {
@@ -556,7 +591,7 @@ func deleteHandler(r *Router) {
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
 			}
-			err = redishelper.Delete(typeDB, id.Hex())
+			err = redishelper.Delete[UsersCart](typeDB, id.Hex())
 
 		}
 		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
@@ -574,7 +609,7 @@ func NewServer() *httpServerStruct {
 	deleteHandler(router)
 
 	httpServer := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":8100",
 		Handler: router.mux,
 	}
 
@@ -582,7 +617,7 @@ func NewServer() *httpServerStruct {
 }
 
 func (s *httpServerStruct) Start(ctx context.Context) error {
-	fmt.Println("Сервер запущен на http://localhost:8080")
+	fmt.Println("Сервер запущен на http://localhost:8100")
 
 	go func() {
 		<-ctx.Done()

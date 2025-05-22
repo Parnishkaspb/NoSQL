@@ -20,6 +20,20 @@ services:
     volumes:
       - redis_data:/data
 
+  neo4j:
+    image: neo4j:5
+    container_name: neo4j
+    ports:
+      - "${NEO4J_BROWSER_PORT}:7474"  # веб-интерфейс
+      - "${NEO4J_BOLT_PORT}:7687"     # Bolt-протокол
+    environment:
+      NEO4J_AUTH: "${NEO4J_USERNAME}/${NEO4J_PASSWORD}"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+
 volumes:
   mongo_data:
   redis_data:
+  neo4j_data:
+  neo4j_logs:

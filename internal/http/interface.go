@@ -38,6 +38,7 @@ type tableBody struct {
 	Discount    int                `bson:"discount"`
 	Quantity    int                `bson:"quantity"`
 	Code        string             `bson:"code"`
+	FriendID    primitive.ObjectID `bson:"friend_id"`
 }
 
 type Country struct {
@@ -98,4 +99,9 @@ type Router struct {
 
 type httpServerStruct struct {
 	httpServer *http.Server
+}
+
+type UserFriend struct {
+	UserID   primitive.ObjectID `bson:"user_id"`
+	FriendID primitive.ObjectID `bson:"friend_id"`
 }

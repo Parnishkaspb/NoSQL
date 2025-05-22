@@ -133,7 +133,7 @@ func Create[T any](collectionName string, value T) (string, error) {
 	return "inserted (non-objectID)", nil
 }
 
-func Delete(collectionName string, filter bson.M) (int64, error) {
+func Delete[T any](collectionName string, filter bson.M) (int64, error) {
 	db, err := getDB()
 	if err != nil {
 		return 0, err
