@@ -311,6 +311,82 @@ func createHandler(r *Router) {
 
 			pkg.WriteApiResponse(w, "Дружба установлена", "", http.StatusOK)
 			return
+		case "gameplatform":
+			gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
+				return
+			}
+
+			platformID, err := primitive.ObjectIDFromHex(tB.PlatformID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный platform_id", http.StatusBadRequest)
+				return
+			}
+
+			game1, err := mongohelper.Read[Game]("games", bson.M{"_id": gameID})
+			if err != nil || len(game1) == 0 {
+				pkg.WriteApiResponse(w, nil, "game_id не найден", http.StatusNotFound)
+				return
+			}
+
+			platform1, err := mongohelper.Read[Platform]("platform", bson.M{"_id": platformID})
+			if err != nil || len(platform1) == 0 {
+				pkg.WriteApiResponse(w, nil, "platform_id не найден", http.StatusNotFound)
+				return
+			}
+
+			_ = neo4jhelper.CreateNode("Game", game1[0].ID.Hex(), game1[0])
+			_ = neo4jhelper.CreateNode("Platform", platform1[0].ID.Hex(), platform1[0])
+
+			err = neo4jhelper.CreateRelation("GAME_PLATFORM", "Game", "Platform", game1[0].ID.Hex(), platform1[0].ID.Hex())
+			err = neo4jhelper.CreateRelation("GAME_PLATFORM", "Platform", "Game", platform1[0].ID.Hex(), game1[0].ID.Hex())
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Ошибка при присоединие игры с платформой: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Игра-Платформа установлена", "", http.StatusOK)
+			return
+		case "gamecountry":
+			gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
+				return
+			}
+
+			countryID, err := primitive.ObjectIDFromHex(tB.CountryID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный country_id", http.StatusBadRequest)
+				return
+			}
+
+			game1, err := mongohelper.Read[Game]("games", bson.M{"_id": gameID})
+			if err != nil || len(game1) == 0 {
+				pkg.WriteApiResponse(w, nil, "game_id не найден", http.StatusNotFound)
+				return
+			}
+
+			country1, err := mongohelper.Read[Country]("countries", bson.M{"_id": countryID})
+			if err != nil || len(country1) == 0 {
+				pkg.WriteApiResponse(w, nil, "country_id не найден", http.StatusNotFound)
+				return
+			}
+
+			_ = neo4jhelper.CreateNode("Game", game1[0].ID.Hex(), game1[0])
+			_ = neo4jhelper.CreateNode("Country", country1[0].ID.Hex(), country1[0])
+
+			err = neo4jhelper.CreateRelation("GAME_COUNTRY", "Game", "Platform", game1[0].ID.Hex(), country1[0].ID.Hex())
+			err = neo4jhelper.CreateRelation("GAME_COUNTRY", "Country", "Game", country1[0].ID.Hex(), game1[0].ID.Hex())
+
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Ошибка при присоединие игры с платформой: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			pkg.WriteApiResponse(w, "Игра-Платформа установлена", "", http.StatusOK)
+			return
 		}
 
 		pkg.WriteApiResponse(w, nil, "Прочитано "+entity, http.StatusOK)
@@ -610,6 +686,147 @@ func deleteHandler(r *Router) {
 		return
 	})
 }
+
+//func deleteNeo4jHandler(r *Router) {
+//	r.mux.HandleFunc("DELETE /delete/{entity}/{firstID}/{secondID}", func(w http.ResponseWriter, r *http.Request) {
+//		entity := r.PathValue("entity")
+//		first := r.PathValue("firstID")
+//		second := r.PathValue("secondID")
+//		switch entity {
+//		case "country":
+//			firstID, err := primitive.ObjectIDFromHex(first)
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
+//				return
+//			}
+//			_, err = mongohelper.Delete[Country]("countries", bson.M{"_id": id})
+//
+//			if err != nil {
+//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			pkg.WriteApiResponse(w, "Удаление произошло успешно", "", http.StatusOK)
+//			return
+//			//case "userfriend":
+//			//	userID, err := primitive.ObjectIDFromHex(tB.UserID)
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Некорректный user_id", http.StatusBadRequest)
+//			//		return
+//			//	}
+//			//
+//			//	friendID, err := primitive.ObjectIDFromHex(tB.FriendID)
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Некорректный friend_id", http.StatusBadRequest)
+//			//		return
+//			//	}
+//			//
+//			//	user1, err := mongohelper.Read[User]("users", bson.M{"_id": userID})
+//			//	if err != nil || len(user1) == 0 {
+//			//		pkg.WriteApiResponse(w, nil, "user_id не найден", http.StatusNotFound)
+//			//		return
+//			//	}
+//			//
+//			//	user2, err := mongohelper.Read[User]("users", bson.M{"_id": friendID})
+//			//	if err != nil || len(user2) == 0 {
+//			//		pkg.WriteApiResponse(w, nil, "friend_id не найден", http.StatusNotFound)
+//			//		return
+//			//	}
+//			//
+//			//	_ = neo4jhelper.CreateNode("User", user1[0].ID.Hex(), user1[0])
+//			//	_ = neo4jhelper.CreateNode("User", user2[0].ID.Hex(), user2[0])
+//			//
+//			//	err = neo4jhelper.CreateRelation("FRIEND_WITH", "User", "User", user1[0].ID.Hex(), user2[0].ID.Hex())
+//			//	err = neo4jhelper.CreateRelation("FRIEND_WITH", "User", "User", user2[0].ID.Hex(), user1[0].ID.Hex())
+//			//
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Ошибка при создании дружбы: "+err.Error(), http.StatusInternalServerError)
+//			//		return
+//			//	}
+//			//
+//			//	pkg.WriteApiResponse(w, "Дружба установлена", "", http.StatusOK)
+//			//	return
+//			//case "gameplatform":
+//			//	gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
+//			//		return
+//			//	}
+//			//
+//			//	platformID, err := primitive.ObjectIDFromHex(tB.PlatformID)
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Некорректный platform_id", http.StatusBadRequest)
+//			//		return
+//			//	}
+//			//
+//			//	game1, err := mongohelper.Read[Game]("games", bson.M{"_id": gameID})
+//			//	if err != nil || len(game1) == 0 {
+//			//		pkg.WriteApiResponse(w, nil, "game_id не найден", http.StatusNotFound)
+//			//		return
+//			//	}
+//			//
+//			//	platform1, err := mongohelper.Read[Platform]("platform", bson.M{"_id": platformID})
+//			//	if err != nil || len(platform1) == 0 {
+//			//		pkg.WriteApiResponse(w, nil, "platform_id не найден", http.StatusNotFound)
+//			//		return
+//			//	}
+//			//
+//			//	_ = neo4jhelper.CreateNode("Game", game1[0].ID.Hex(), game1[0])
+//			//	_ = neo4jhelper.CreateNode("Platform", platform1[0].ID.Hex(), platform1[0])
+//			//
+//			//	err = neo4jhelper.CreateRelation("GAME_PLATFORM", "Game", "Platform", game1[0].ID.Hex(), platform1[0].ID.Hex())
+//			//	err = neo4jhelper.CreateRelation("GAME_PLATFORM", "Platform", "Game", platform1[0].ID.Hex(), game1[0].ID.Hex())
+//			//
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Ошибка при присоединие игры с платформой: "+err.Error(), http.StatusInternalServerError)
+//			//		return
+//			//	}
+//			//
+//			//	pkg.WriteApiResponse(w, "Игра-Платформа установлена", "", http.StatusOK)
+//			//	return
+//			//case "gamecountry":
+//			//	gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
+//			//		return
+//			//	}
+//			//
+//			//	countryID, err := primitive.ObjectIDFromHex(tB.CountryID)
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Некорректный country_id", http.StatusBadRequest)
+//			//		return
+//			//	}
+//			//
+//			//	game1, err := mongohelper.Read[Game]("games", bson.M{"_id": gameID})
+//			//	if err != nil || len(game1) == 0 {
+//			//		pkg.WriteApiResponse(w, nil, "game_id не найден", http.StatusNotFound)
+//			//		return
+//			//	}
+//			//
+//			//	country1, err := mongohelper.Read[Country]("countries", bson.M{"_id": countryID})
+//			//	if err != nil || len(country1) == 0 {
+//			//		pkg.WriteApiResponse(w, nil, "country_id не найден", http.StatusNotFound)
+//			//		return
+//			//	}
+//			//
+//			//	_ = neo4jhelper.CreateNode("Game", game1[0].ID.Hex(), game1[0])
+//			//	_ = neo4jhelper.CreateNode("Country", country1[0].ID.Hex(), country1[0])
+//			//
+//			//	err = neo4jhelper.CreateRelation("GAME_COUNTRY", "Game", "Platform", game1[0].ID.Hex(), country1[0].ID.Hex())
+//			//	err = neo4jhelper.CreateRelation("GAME_COUNTRY", "Country", "Game", country1[0].ID.Hex(), game1[0].ID.Hex())
+//			//
+//			//	if err != nil {
+//			//		pkg.WriteApiResponse(w, nil, "Ошибка при присоединие игры с платформой: "+err.Error(), http.StatusInternalServerError)
+//			//		return
+//			//	}
+//			//
+//			//	pkg.WriteApiResponse(w, "Игра-Платформа установлена", "", http.StatusOK)
+//			//	return
+//		}
+//		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
+//		return
+//	})
+//}
 
 func NewServer() *httpServerStruct {
 	router := &Router{mux: http.NewServeMux()}

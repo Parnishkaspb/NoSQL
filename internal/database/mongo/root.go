@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"log"
 	"os"
 	"sync"
@@ -25,45 +26,86 @@ var (
 )
 
 func initMongo() {
-	initErr = godotenv.Load(".env")
-	if initErr != nil {
-		log.Printf("Не удалось загрузить .env: %v", initErr)
-		return
-	}
+	_ = godotenv.Load(".env")
 
 	username := os.Getenv("MONGO_USERNAME")
 	password := os.Getenv("MONGO_PASSWORD")
 	defaultDB = os.Getenv("MONGO_DB")
-	host := os.Getenv("MONGO_HOST")
-	port := os.Getenv("MONGO_PORT")
+	replicaSet := os.Getenv("MONGO_REPLICA_SET")
+	hosts := os.Getenv("MONGO_HOSTS") // Пример: mongo1:27017,mongo2:27017,mongo3:27017
 
-	if username == "" || password == "" || defaultDB == "" || host == "" || port == "" {
-		log.Printf("Не заданы обязательные переменные окружения: %s %s %s %s", username, password, host, port)
-		initErr = fmt.Errorf("Не заданы обязательные переменные окружения")
+	if username == "" || password == "" || defaultDB == "" || hosts == "" || replicaSet == "" {
+		initErr = fmt.Errorf("не заданы обязательные переменные окружения: MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB, MONGO_HOSTS, MONGO_REPLICA_SET")
+		log.Println("❌", initErr)
 		return
 	}
 
-	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, host, port)
-	clientOpts := options.Client().ApplyURI(uri)
+	uri := fmt.Sprintf("mongodb://%s:%s@%s/?replicaSet=%s", username, password, hosts, replicaSet)
+
+	clientOpts := options.Client().
+		ApplyURI(uri).
+		SetReadPreference(readpref.SecondaryPreferred()).
+		SetRetryWrites(true)
 
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	client, initErr = mongo.Connect(connectCtx, clientOpts)
 	if initErr != nil {
-		log.Printf("Ошибка подключения к MongoDB: %v", initErr)
+		log.Printf("❌ Ошибка подключения к MongoDB: %v", initErr)
 		return
 	}
 
 	if err := client.Ping(connectCtx, nil); err != nil {
-		log.Printf("MongoDB не отвечает: %v", err)
 		initErr = fmt.Errorf("MongoDB не отвечает: %v", err)
+		log.Println("❌", initErr)
 		return
 	}
 
 	database = client.Database(defaultDB)
-	log.Println("✅ Успешное подключение к MongoDB")
+	log.Println("✅ Подключение к MongoDB Replica Set успешно")
 }
+
+//func initMongo() {
+//	initErr = godotenv.Load(".env")
+//	if initErr != nil {
+//		log.Printf("Не удалось загрузить .env: %v", initErr)
+//		return
+//	}
+//
+//	username := os.Getenv("MONGO_USERNAME")
+//	password := os.Getenv("MONGO_PASSWORD")
+//	defaultDB = os.Getenv("MONGO_DB")
+//	host := os.Getenv("MONGO_HOST")
+//	port := os.Getenv("MONGO_PORT")
+//
+//	if username == "" || password == "" || defaultDB == "" || host == "" || port == "" {
+//		log.Printf("Не заданы обязательные переменные окружения: %s %s %s %s", username, password, host, port)
+//		initErr = fmt.Errorf("Не заданы обязательные переменные окружения")
+//		return
+//	}
+//
+//	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, host, port)
+//	clientOpts := options.Client().ApplyURI(uri)
+//
+//	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+//	defer cancel()
+//
+//	client, initErr = mongo.Connect(connectCtx, clientOpts)
+//	if initErr != nil {
+//		log.Printf("Ошибка подключения к MongoDB: %v", initErr)
+//		return
+//	}
+//
+//	if err := client.Ping(connectCtx, nil); err != nil {
+//		log.Printf("MongoDB не отвечает: %v", err)
+//		initErr = fmt.Errorf("MongoDB не отвечает: %v", err)
+//		return
+//	}
+//
+//	database = client.Database(defaultDB)
+//	log.Println("✅ Успешное подключение к MongoDB")
+//}
 
 func getDB() (*mongo.Database, error) {
 	initOnce.Do(initMongo)

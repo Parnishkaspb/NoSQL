@@ -39,6 +39,8 @@ type tableBody struct {
 	Quantity    int     `json:"quantity"`
 	Code        string  `json:"code"`
 	FriendID    string  `json:"friend_id"`
+	PlatformID  string  `json:"platform_id"`
+	CountryID   string  `json:"country_id"`
 }
 
 type Country struct {

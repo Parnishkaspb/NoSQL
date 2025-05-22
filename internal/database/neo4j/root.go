@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,47 +22,108 @@ var (
 )
 
 func initNeo4j() {
-	initErr = godotenv.Load(".env")
-	if initErr != nil {
-		log.Printf("не удалось загрузить .env: %v", initErr)
-		return
-	}
+	_ = godotenv.Load(".env")
 
-	host := os.Getenv("NEO4J_HOST")
-	port := os.Getenv("NEO4J_BOLT_PORT")
+	hosts := splitAndTrim(os.Getenv("NEO4J_CLUSTER_HOSTS")) // core1:7687,core2:7687,...
 	username := os.Getenv("NEO4J_USERNAME")
 	password := os.Getenv("NEO4J_PASSWORD")
 
-	if host == "" || port == "" || username == "" || password == "" {
-		initErr = fmt.Errorf("не заданы переменные окружения NEO4J_HOST, PORT, USERNAME, PASSWORD")
-		log.Print(initErr)
+	if len(hosts) == 0 || username == "" || password == "" {
+		initErr = fmt.Errorf("не заданы обязательные переменные окружения: NEO4J_CLUSTER_HOSTS, NEO4J_USERNAME, NEO4J_PASSWORD")
+		log.Println("❌", initErr)
 		return
 	}
 
-	uri := fmt.Sprintf("neo4j://%s:%s", host, port)
-	driver, initErr = neo4j.NewDriverWithContext(uri, neo4j.BasicAuth(username, password, ""))
-	if initErr != nil {
-		log.Printf("ошибка создания драйвера: %v", initErr)
-		return
+	uri := fmt.Sprintf("neo4j://%s", strings.Join(hosts, ","))
+
+	// Множественные попытки подключения
+	for i := 1; i <= 5; i++ {
+		driver, initErr = neo4j.NewDriverWithContext(uri, neo4j.BasicAuth(username, password, ""), func(config *neo4j.Config) {
+			config.MaxConnectionPoolSize = 50
+			config.ConnectionAcquisitionTimeout = 10 * time.Second
+		})
+		if initErr == nil {
+			// Проверим доступность
+			pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			err := driver.VerifyConnectivity(pingCtx)
+			cancel()
+			if err == nil {
+				log.Println("✅ Успешное подключение к Neo4j Causal Cluster")
+				return
+			}
+			initErr = fmt.Errorf("Neo4j не отвечает: %v", err)
+		}
+
+		log.Printf("🔄 Попытка %d: %v", i, initErr)
+		time.Sleep(2 * time.Second)
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err := driver.VerifyConnectivity(pingCtx); err != nil {
-		initErr = fmt.Errorf("Neo4j не отвечает: %v", err)
-		log.Print(initErr)
-		return
-	}
+	log.Print("❌ Не удалось подключиться к Neo4j кластеру")
+}
 
-	log.Println("✅ Успешное подключение к Neo4j")
+func splitAndTrim(s string) []string {
+	parts := strings.Split(s, ",")
+	var result []string
+	for _, part := range parts {
+		result = append(result, strings.TrimSpace(part))
+	}
+	return result
 }
 
 func getDriver() (neo4j.DriverWithContext, error) {
-	initOnce.Do(func() {
-		initNeo4j()
-	})
+	initOnce.Do(initNeo4j)
 	return driver, initErr
 }
+
+//var (
+//	driver   neo4j.DriverWithContext
+//	initOnce sync.Once
+//	initErr  error
+//	ctx      = context.Background()
+//)
+//
+//func initNeo4j() {
+//	initErr = godotenv.Load(".env")
+//	if initErr != nil {
+//		log.Printf("не удалось загрузить .env: %v", initErr)
+//		return
+//	}
+//
+//	host := os.Getenv("NEO4J_HOST")
+//	port := os.Getenv("NEO4J_BOLT_PORT")
+//	username := os.Getenv("NEO4J_USERNAME")
+//	password := os.Getenv("NEO4J_PASSWORD")
+//
+//	if host == "" || port == "" || username == "" || password == "" {
+//		initErr = fmt.Errorf("не заданы переменные окружения NEO4J_HOST, PORT, USERNAME, PASSWORD")
+//		log.Print(initErr)
+//		return
+//	}
+//
+//	uri := fmt.Sprintf("neo4j://%s:%s", host, port)
+//	driver, initErr = neo4j.NewDriverWithContext(uri, neo4j.BasicAuth(username, password, ""))
+//	if initErr != nil {
+//		log.Printf("ошибка создания драйвера: %v", initErr)
+//		return
+//	}
+//
+//	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+//	defer cancel()
+//	if err := driver.VerifyConnectivity(pingCtx); err != nil {
+//		initErr = fmt.Errorf("Neo4j не отвечает: %v", err)
+//		log.Print(initErr)
+//		return
+//	}
+//
+//	log.Println("✅ Успешное подключение к Neo4j")
+//}
+//
+//func getDriver() (neo4j.DriverWithContext, error) {
+//	initOnce.Do(func() {
+//		initNeo4j()
+//	})
+//	return driver, initErr
+//}
 
 func CreateRelation(relationType string, fromLabel, toLabel string, fromID, toID string) error {
 	drv, err := getDriver()
