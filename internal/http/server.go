@@ -1,20 +1,22 @@
 package http
 
 import (
-	mongohelper "NoSQL/internal/database/mongo"
-	redishelper "NoSQL/internal/database/redis"
-	"NoSQL/internal/pkg"
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"NoSQL/internal/database/mongo"
+	"NoSQL/internal/database/redis"
+	"NoSQL/internal/pkg"
 )
 
 func createHandler(r *Router) {
@@ -269,103 +271,6 @@ func createHandler(r *Router) {
 		return
 	})
 }
-
-//func readHandler(r *Router) {
-//	r.mux.HandleFunc("GET /read/{entity}/{id}", func(w http.ResponseWriter, r *http.Request) {
-//		entity := r.PathValue("entity")
-//		id := r.PathValue("id")
-//		switch entity {
-//		case "country":
-//			answer, err := mongohelper.ReadAll[Country]("countries")
-//
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
-//			return
-//		case "platform":
-//			answer, err := mongohelper.ReadAll[Platform]("platforms")
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
-//			return
-//		case "game":
-//			answer, err := mongohelper.ReadAll[Game]("games")
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
-//			return
-//		case "user":
-//			answer, err := mongohelper.ReadAll[User]("users")
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
-//			return
-//		case "gamereview":
-//			answer, err := mongohelper.ReadAll[GameReview]("gamesreviews")
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
-//			return
-//		case "gameactualprice":
-//			id, err := primitive.ObjectIDFromHex(id)
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
-//				return
-//			}
-//			typeDB, err := strconv.Atoi(os.Getenv("REDIS_GamesActualPrice"))
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
-//				return
-//			}
-//			gameactualprice, err := redishelper.Read[GameActualPrice](typeDB, id.Hex())
-//
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, gameactualprice, "", http.StatusOK)
-//			return
-//		case "userscart":
-//			id, err := primitive.ObjectIDFromHex(id)
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, "Некорректный ID", http.StatusBadRequest)
-//				return
-//			}
-//			typeDB, err := strconv.Atoi(os.Getenv("REDIS_UsersCart"))
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, "Проблемы с типом БД", http.StatusBadRequest)
-//				return
-//			}
-//			userscart, err := redishelper.Read[UsersCart](typeDB, id.Hex())
-//
-//			if err != nil {
-//				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
-//				return
-//			}
-//
-//			pkg.WriteApiResponse(w, userscart, "", http.StatusOK)
-//			return
-//		}
-//		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
-//		return
-//	})
-//}
 
 func handleReadAll(r *Router) {
 	r.mux.HandleFunc("GET /read/{entity}", func(w http.ResponseWriter, r *http.Request) {
@@ -657,14 +562,6 @@ func deleteHandler(r *Router) {
 		pkg.WriteApiResponse(w, nil, "Прочитано: "+entity, http.StatusOK)
 		return
 	})
-}
-
-type Router struct {
-	mux *http.ServeMux
-}
-
-type httpServerStruct struct {
-	httpServer *http.Server
 }
 
 func NewServer() *httpServerStruct {

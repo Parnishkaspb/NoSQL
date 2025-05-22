@@ -1,9 +1,10 @@
 package http
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Server interface {
@@ -89,4 +90,12 @@ type UsersCart struct {
 
 type UsersResetPassword struct {
 	Code string `json:"code"`
+}
+
+type Router struct {
+	mux *http.ServeMux
+}
+
+type httpServerStruct struct {
+	httpServer *http.Server
 }
