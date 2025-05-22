@@ -144,14 +144,18 @@ func createHandler(r *Router) {
 				return
 			}
 		case "gamereview":
-			if tB.GameID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть пустым", http.StatusBadRequest)
+			userID, err := primitive.ObjectIDFromHex(tB.UserID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный user_id", http.StatusBadRequest)
 				return
 			}
-			if tB.UserID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле user_id не может быть пустым", http.StatusBadRequest)
+
+			gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
 				return
 			}
+
 			if tB.Review == "" {
 				pkg.WriteApiResponse(w, nil, "Поле text не может быть пустым", http.StatusBadRequest)
 				return
@@ -161,7 +165,7 @@ func createHandler(r *Router) {
 				return
 			}
 
-			users, err := mongohelper.Read[User]("users", bson.M{"_id": tB.UserID})
+			users, err := mongohelper.Read[User]("users", bson.M{"_id": userID})
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, err.Error(), http.StatusInternalServerError)
 				return
@@ -182,8 +186,8 @@ func createHandler(r *Router) {
 			}
 
 			gamereview := GameReview{
-				GameID:    tB.GameID,
-				UserID:    tB.UserID,
+				GameID:    gameID,
+				UserID:    userID,
 				Rating:    tB.Rating,
 				Review:    tB.Review,
 				CreatedAt: time.Now(),
@@ -196,8 +200,9 @@ func createHandler(r *Router) {
 				return
 			}
 		case "gameactualprice":
-			if tB.GameID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть равно или меньше 0", http.StatusBadRequest)
+			gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
 				return
 			}
 
@@ -218,20 +223,22 @@ func createHandler(r *Router) {
 				Price:    tB.Price,
 				Discount: tB.Discount,
 			}
-			err = redishelper.CreateUpdate[GameActualPrice](typeDB, tB.GameID.Hex(), gameactualprice)
+			err = redishelper.CreateUpdate[GameActualPrice](typeDB, gameID.Hex(), gameactualprice)
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
 				return
 			}
 		case "userscart":
-			if tB.UserID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле user_id не может быть равно или меньше 0", http.StatusBadRequest)
+			userID, err := primitive.ObjectIDFromHex(tB.UserID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный user_id", http.StatusBadRequest)
 				return
 			}
 
-			if tB.GameID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть равно или меньше 0", http.StatusBadRequest)
+			gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
 				return
 			}
 
@@ -251,12 +258,12 @@ func createHandler(r *Router) {
 				return
 			}
 			userscart := UsersCart{
-				GameID:   tB.GameID,
+				GameID:   gameID,
 				Quantity: tB.Quantity,
 				Price:    tB.Price,
 			}
 
-			err = redishelper.CreateUpdate[UsersCart](typeDB, tB.GameID.Hex(), userscart)
+			err = redishelper.CreateUpdate[UsersCart](typeDB, userID.Hex(), userscart)
 
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, "Проблемa : "+err.Error(), http.StatusBadRequest)
@@ -267,23 +274,25 @@ func createHandler(r *Router) {
 			return
 
 		case "userfriend":
-			if tB.UserID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле user_id не может быть пустым", http.StatusBadRequest)
+			userID, err := primitive.ObjectIDFromHex(tB.UserID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный user_id", http.StatusBadRequest)
 				return
 			}
 
-			if tB.FriendID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле friend_id не может быть пустым", http.StatusBadRequest)
+			friendID, err := primitive.ObjectIDFromHex(tB.FriendID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный friend_id", http.StatusBadRequest)
 				return
 			}
 
-			user1, err := mongohelper.Read[User]("users", bson.M{"_id": tB.UserID})
+			user1, err := mongohelper.Read[User]("users", bson.M{"_id": userID})
 			if err != nil || len(user1) == 0 {
 				pkg.WriteApiResponse(w, nil, "user_id не найден", http.StatusNotFound)
 				return
 			}
 
-			user2, err := mongohelper.Read[User]("users", bson.M{"_id": tB.FriendID})
+			user2, err := mongohelper.Read[User]("users", bson.M{"_id": friendID})
 			if err != nil || len(user2) == 0 {
 				pkg.WriteApiResponse(w, nil, "friend_id не найден", http.StatusNotFound)
 				return
@@ -293,13 +302,15 @@ func createHandler(r *Router) {
 			_ = neo4jhelper.CreateNode("User", user2[0].ID.Hex(), user2[0])
 
 			err = neo4jhelper.CreateRelation("FRIEND_WITH", "User", "User", user1[0].ID.Hex(), user2[0].ID.Hex())
+			err = neo4jhelper.CreateRelation("FRIEND_WITH", "User", "User", user2[0].ID.Hex(), user1[0].ID.Hex())
+
 			if err != nil {
 				pkg.WriteApiResponse(w, nil, "Ошибка при создании дружбы: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			pkg.WriteApiResponse(w, "Дружба установлена", "", http.StatusOK)
-
+			return
 		}
 
 		pkg.WriteApiResponse(w, nil, "Прочитано "+entity, http.StatusOK)
@@ -449,8 +460,9 @@ func updateHandler(r *Router) {
 			pkg.WriteApiResponse(w, answer, "", http.StatusOK)
 			return
 		case "userscart":
-			if tB.GameID.IsZero() {
-				pkg.WriteApiResponse(w, nil, "Поле game_id не может быть равно или меньше 0", http.StatusBadRequest)
+			gameID, err := primitive.ObjectIDFromHex(tB.GameID)
+			if err != nil {
+				pkg.WriteApiResponse(w, nil, "Некорректный game_id", http.StatusBadRequest)
 				return
 			}
 
@@ -470,7 +482,7 @@ func updateHandler(r *Router) {
 				return
 			}
 			userscart := UsersCart{
-				GameID:   tB.GameID,
+				GameID:   gameID,
 				Quantity: tB.Quantity,
 				Price:    tB.Price,
 			}

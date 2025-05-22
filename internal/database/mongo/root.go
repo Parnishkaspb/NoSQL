@@ -34,11 +34,11 @@ func initMongo() {
 	username := os.Getenv("MONGO_USERNAME")
 	password := os.Getenv("MONGO_PASSWORD")
 	defaultDB = os.Getenv("MONGO_DB")
-	host := os.Getenv("HOST")
+	host := os.Getenv("MONGO_HOST")
 	port := os.Getenv("MONGO_PORT")
 
 	if username == "" || password == "" || defaultDB == "" || host == "" || port == "" {
-		log.Printf("Не заданы обязательные переменные окружения")
+		log.Printf("Не заданы обязательные переменные окружения: %s %s %s %s", username, password, host, port)
 		initErr = fmt.Errorf("Не заданы обязательные переменные окружения")
 		return
 	}

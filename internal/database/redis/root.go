@@ -27,7 +27,7 @@ func initRedis(typeDB int) {
 		return
 	}
 
-	host := os.Getenv("HOST")
+	host := os.Getenv("REDIS_HOST")
 	port := os.Getenv("REDIS_PORT")
 	if host == "" || port == "" {
 		initErr = fmt.Errorf("HOST или REDIS_PORT не заданы в .env")

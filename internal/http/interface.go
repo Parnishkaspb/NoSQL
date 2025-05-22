@@ -22,23 +22,23 @@ type Serve struct {
 }
 
 type tableBody struct {
-	Name        string             `json:"name"`
-	Title       string             `json:"title"`
-	Description string             `json:"description"`
-	Price       float64            `json:"price"`
-	Age         int                `json:"age"`
-	ApprovedAge *bool              `json:"approved_age"`
-	Surname     string             `json:"surname"`
-	Login       string             `json:"login"`
-	Password    string             `json:"password"`
-	GameID      primitive.ObjectID `bson:"game_id"`
-	UserID      primitive.ObjectID `bson:"user_id"`
-	Rating      int                `bson:"rating"`
-	Review      string             `bson:"text"`
-	Discount    int                `bson:"discount"`
-	Quantity    int                `bson:"quantity"`
-	Code        string             `bson:"code"`
-	FriendID    primitive.ObjectID `bson:"friend_id"`
+	Name        string  `json:"name"`
+	Title       string  `json:"title"`
+	Description string  `json:"description"`
+	Price       float64 `json:"price"`
+	Age         int     `json:"age"`
+	ApprovedAge *bool   `json:"approved_age"`
+	Surname     string  `json:"surname"`
+	Login       string  `json:"login"`
+	Password    string  `json:"password"`
+	GameID      string  `json:"game_id"`
+	UserID      string  `json:"user_id"`
+	Rating      int     `json:"rating"`
+	Review      string  `json:"text"`
+	Discount    int     `json:"discount"`
+	Quantity    int     `json:"quantity"`
+	Code        string  `json:"code"`
+	FriendID    string  `json:"friend_id"`
 }
 
 type Country struct {
