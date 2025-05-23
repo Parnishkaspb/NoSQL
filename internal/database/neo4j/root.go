@@ -21,34 +21,73 @@ var (
 	ctx      = context.Background()
 )
 
+//func initNeo4j() {
+//	_ = godotenv.Load(".env")
+//
+//	hosts := splitAndTrim(os.Getenv("NEO4J_CLUSTER_HOSTS")) // core1:7687,core2:7687,...
+//	username := os.Getenv("NEO4J_USERNAME")
+//	password := os.Getenv("NEO4J_PASSWORD")
+//
+//	if len(hosts) == 0 || username == "" || password == "" {
+//		initErr = fmt.Errorf("не заданы обязательные переменные окружения: NEO4J_CLUSTER_HOSTS, NEO4J_USERNAME, NEO4J_PASSWORD")
+//		log.Println("❌", initErr)
+//		return
+//	}
+//
+//	uri := fmt.Sprintf("neo4j://%s", strings.Join(hosts, ","))
+//
+//	// Множественные попытки подключения
+//	for i := 1; i <= 5; i++ {
+//		driver, initErr = neo4j.NewDriverWithContext(uri, neo4j.BasicAuth(username, password, ""), func(config *neo4j.Config) {
+//			config.MaxConnectionPoolSize = 50
+//			config.ConnectionAcquisitionTimeout = 10 * time.Second
+//		})
+//		if initErr == nil {
+//			// Проверим доступность
+//			pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//			err := driver.VerifyConnectivity(pingCtx)
+//			cancel()
+//			if err == nil {
+//				log.Println("✅ Успешное подключение к Neo4j Causal Cluster")
+//				return
+//			}
+//			initErr = fmt.Errorf("Neo4j не отвечает: %v", err)
+//		}
+//
+//		log.Printf("🔄 Попытка %d: %v", i, initErr)
+//		time.Sleep(2 * time.Second)
+//	}
+//
+//	log.Print("❌ Не удалось подключиться к Neo4j кластеру")
+//}
+
 func initNeo4j() {
 	_ = godotenv.Load(".env")
 
-	hosts := splitAndTrim(os.Getenv("NEO4J_CLUSTER_HOSTS")) // core1:7687,core2:7687,...
+	host := os.Getenv("NEO4J_HOST") // Пример: core1:7687
 	username := os.Getenv("NEO4J_USERNAME")
 	password := os.Getenv("NEO4J_PASSWORD")
 
-	if len(hosts) == 0 || username == "" || password == "" {
-		initErr = fmt.Errorf("не заданы обязательные переменные окружения: NEO4J_CLUSTER_HOSTS, NEO4J_USERNAME, NEO4J_PASSWORD")
+	if host == "" || username == "" || password == "" {
+		initErr = fmt.Errorf("не заданы обязательные переменные окружения: NEO4J_HOST, NEO4J_USERNAME, NEO4J_PASSWORD")
 		log.Println("❌", initErr)
 		return
 	}
 
-	uri := fmt.Sprintf("neo4j://%s", strings.Join(hosts, ","))
+	uri := fmt.Sprintf("bolt://%s", strings.TrimSpace(host))
 
-	// Множественные попытки подключения
 	for i := 1; i <= 5; i++ {
 		driver, initErr = neo4j.NewDriverWithContext(uri, neo4j.BasicAuth(username, password, ""), func(config *neo4j.Config) {
 			config.MaxConnectionPoolSize = 50
 			config.ConnectionAcquisitionTimeout = 10 * time.Second
 		})
+
 		if initErr == nil {
-			// Проверим доступность
 			pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			err := driver.VerifyConnectivity(pingCtx)
 			cancel()
 			if err == nil {
-				log.Println("✅ Успешное подключение к Neo4j Causal Cluster")
+				log.Println("✅ Успешное подключение к Neo4j")
 				return
 			}
 			initErr = fmt.Errorf("Neo4j не отвечает: %v", err)
@@ -58,7 +97,7 @@ func initNeo4j() {
 		time.Sleep(2 * time.Second)
 	}
 
-	log.Print("❌ Не удалось подключиться к Neo4j кластеру")
+	log.Print("❌ Не удалось подключиться к Neo4j")
 }
 
 func splitAndTrim(s string) []string {

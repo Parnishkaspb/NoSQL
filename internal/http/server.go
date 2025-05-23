@@ -50,6 +50,9 @@ func createHandler(r *Router) {
 				pkg.WriteApiResponse(w, nil, answer+err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			pkg.WriteApiResponse(w, tB.Name+" успешно добавлен", "", http.StatusOK)
+			return
 		case "platform":
 			if tB.Name == "" {
 				pkg.WriteApiResponse(w, nil, "Поле name не может быть пустым", http.StatusBadRequest)

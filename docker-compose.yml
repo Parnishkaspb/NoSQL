@@ -124,21 +124,50 @@ services:
       - "6379:6379"
     volumes:
       - redis_master_data:/data
+    networks:
+      - neo4jnet
 
   redis-replica1:
     image: redis:7
     container_name: redis-replica1
-    command: ["redis-server", "--replicaof", "redis-master", "6379", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_replica1_data:/data
+    networks:
+      - neo4jnet
 
   redis-replica2:
     image: redis:7
     container_name: redis-replica2
-    command: ["redis-server", "--replicaof", "redis-master", "6379", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_replica2_data:/data
+    networks:
+      - neo4jnet
 
+#  redis-sentinel1:
+#    image: bitnami/redis-sentinel:latest
+#    container_name: redis-sentinel1
+#    environment:
+#      - REDIS_MASTER_HOST=redis-master
+#      - REDIS_MASTER_PORT_NUMBER=6379
+#      - REDIS_SENTINEL_QUORUM=2
+#
+#  redis-sentinel2:
+#    image: bitnami/redis-sentinel:latest
+#    container_name: redis-sentinel2
+#    environment:
+#      - REDIS_MASTER_HOST=redis-master
+#      - REDIS_MASTER_PORT_NUMBER=6379
+#      - REDIS_SENTINEL_QUORUM=2
+#
+#  redis-sentinel3:
+#    image: bitnami/redis-sentinel:latest
+#    container_name: redis-sentinel3
+#    environment:
+#      - REDIS_MASTER_HOST=redis-master
+#      - REDIS_MASTER_PORT_NUMBER=6379
+#      - REDIS_SENTINEL_QUORUM=2
   redis-sentinel1:
     image: bitnami/redis-sentinel:latest
     container_name: redis-sentinel1
@@ -146,6 +175,10 @@ services:
       - REDIS_MASTER_HOST=redis-master
       - REDIS_MASTER_PORT_NUMBER=6379
       - REDIS_SENTINEL_QUORUM=2
+    networks:
+      - neo4jnet
+    ports:
+      - "26379:26379"  # опционально, для диагностики
 
   redis-sentinel2:
     image: bitnami/redis-sentinel:latest
@@ -154,6 +187,8 @@ services:
       - REDIS_MASTER_HOST=redis-master
       - REDIS_MASTER_PORT_NUMBER=6379
       - REDIS_SENTINEL_QUORUM=2
+    networks:
+      - neo4jnet
 
   redis-sentinel3:
     image: bitnami/redis-sentinel:latest
@@ -162,6 +197,8 @@ services:
       - REDIS_MASTER_HOST=redis-master
       - REDIS_MASTER_PORT_NUMBER=6379
       - REDIS_SENTINEL_QUORUM=2
+    networks:
+      - neo4jnet
 
   # === Neo4j Causal Cluster (dev mode) ===
   core1:
